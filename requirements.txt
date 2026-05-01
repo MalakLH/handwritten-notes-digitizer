@@ -1,0 +1,35 @@
+# ============================================================
+# Handwritten Notes Digitizer — Requirements
+# Python 3.10 or 3.11 recommended (PaddlePaddle constraint)
+# ============================================================
+
+# --- Image processing ---
+opencv-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0,<2.0.0          # keep <2.0 — PaddlePaddle breaks on numpy 2.x
+
+# --- PaddleOCR (CPU) ---
+# For GPU, replace with: paddlepaddle-gpu==3.0.0
+# and install via: pip install paddlepaddle-gpu==3.0.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
+paddlepaddle==3.0.0
+paddleocr>=2.9.0
+
+# --- HuggingFace / TrOCR (kept for the experiments notebooks) ---
+transformers>=4.40.0
+torch>=2.1.0
+torchvision>=0.16.0
+
+# --- Gemini (post-processing LLM) ---
+google-genai>=1.0.0
+
+# --- Groq (post-processing LLM — alternative to Gemini) ---
+groq>=0.9.0
+
+# --- Notion integration ---
+notion-client>=3.0.0
+
+# --- Utilities ---
+python-dotenv>=1.0.0
+requests>=2.31.0
+tqdm>=4.66.0
+PyYAML>=6.0
