@@ -3,9 +3,6 @@ notion_export.py
 ────────────────
 Takes clean text (from postprocessing.py) and creates a formatted Notion page.
 
-This is almost exactly your Notion_integration.ipynb notebook, refactored into
-clean functions with docstrings explaining every decision.
-
 The flow:
   1. parse_text_to_blocks()  → converts plain text into Notion block objects
   2. create_notion_page()    → calls the Notion API to create the actual page
@@ -192,7 +189,6 @@ def create_notion_page(
     
     Returns:
         The URL of the newly created Notion page.
-        Example: "https://www.notion.so/350e54104f86819aba08d4d2535ad4d0"
     
     Raises:
         ValueError: If credentials are missing.
@@ -208,8 +204,7 @@ def create_notion_page(
         )
     if not parent_id:
         raise ValueError(
-            "Notion parent page ID not found. Set NOTION_PARENT_PAGE_ID in .env\n"
-            "or pass it directly. It's the long ID in your Notion page URL."
+            "Notion parent page ID not found"
         )
 
     # ── Parse text → blocks ───────────────────────────────────────────────────

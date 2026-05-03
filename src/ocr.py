@@ -1,10 +1,6 @@
 """
 ocr.py
-──────
 Loads your fine-tuned PaddleOCR model and runs inference on an image file.
-
-Your model is in inference format (.pdiparams + .json + .yml),
-which is the exported format from PaddleOCR training.
 
 Usage:
     from src.ocr import load_model, run_ocr
@@ -18,11 +14,6 @@ import os
 def load_model(model_dir: str = None, use_gpu: bool = False):
     """
     Load the PaddleOCR model once at startup.
-
-    Your fine-tuned model is in inference format (inference.pdiparams,
-    inference.json, inference.yml). PaddleOCR's TextRecognition accepts
-    this via the model_dir argument — it looks for those files inside
-    the folder you point it to.
 
     Args:
         model_dir: Path to folder containing inference.pdiparams etc.

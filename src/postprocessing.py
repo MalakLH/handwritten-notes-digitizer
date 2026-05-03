@@ -2,26 +2,6 @@
 
 Takes the raw, messy OCR output and uses an LLM (Groq or Gemini) to clean it.
 
-WHY we need this step:
-  OCR on handwritten text is imperfect. Your model might output:
-    "Ican ocR engine That uses Deep learning"
-  But what was actually written is:
-    "I can OCR engine that uses deep learning"
-  
-  The LLM knows what words should look like in context and can fix:
-  - Wrong capitalization
-  - Obvious misread characters (0 vs O, 1 vs l vs I)
-  - Broken words
-  - Missing spaces
-  - Gibberish at the ends of lines
-  
-  It does NOT add information — it only fixes what's clearly wrong.
-  If it can't figure something out, it leaves it as-is.
-
-Supports two providers:
-  - Groq  (fast, free tier, uses Llama)   → preferred for deployment
-  - Gemini (Google, also has free tier)    → fallback / alternative
-
 Usage:
     from src.postprocessing import clean_text
     clean = clean_text("Ican ocR engine That uses Deep lerning", provider="groq")
@@ -100,7 +80,7 @@ def _clean_with_gemini(raw_text: str) -> str:
     """
     Send raw OCR text to Google's Gemini API and return the cleaned version.
 
-    Model: gemini-2.0-flash — fast and cheap, good for text tasks.
+    Model: gemini-2.5-flash: good for text tasks.
     """
     from google import genai
     
