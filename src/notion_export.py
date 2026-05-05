@@ -172,94 +172,101 @@ def parse_text_to_blocks(text: str) -> tuple:
 # Main function — create the Notion page
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_notion_page(
+import re
+import os
+from datetime import datetime
+from notion_client import Client
+
+# ... (Keep _make_heading, _make_paragraph, _make_bullet, _make_numbered, _is_special_line, and parse_text_to_blocks as they are) ...
+
+def export_to_notion(
     clean_text: str,
     notion_token: str = None,
-    parent_page_id: str = None
+    page_id: str = None,
+    append_mode: bool = False
 ) -> str:
     """
-    Create a formatted Notion page from clean text and return its URL.
+    Handles both creating a new page and appending to an existing one.
     
     Args:
-        clean_text:     The cleaned text from postprocessing.clean_text().
-        notion_token:   Your Notion integration token (starts with "secret_").
-                        If None, reads from NOTION_TOKEN environment variable.
-        parent_page_id: The ID of the Notion page to create the note under.
-                        If None, reads from NOTION_PARENT_PAGE_ID env var.
-    
-    Returns:
-        The URL of the newly created Notion page.
-    
-    Raises:
-        ValueError: If credentials are missing.
+        clean_text: The cleaned text from the LLM.
+        notion_token: Integration secret.
+        page_id: Parent ID (if new) or Target ID (if append).
+        append_mode: If True, adds to existing page. If False, creates new.
     """
-    # ── Get credentials ───────────────────────────────────────────────────────
-    token     = notion_token     or os.getenv("NOTION_TOKEN")
-    parent_id = parent_page_id   or os.getenv("NOTION_PARENT_PAGE_ID")
+    token = notion_token or os.getenv("NOTION_TOKEN")
+    target_id = page_id or os.getenv("NOTION_PARENT_PAGE_ID")
     
-    if not token:
-        raise ValueError(
-            "Notion token not found. Set NOTION_TOKEN in .env or pass it directly.\n"
-            "Get a token at: https://www.notion.so/my-integrations"
-        )
-    if not parent_id:
-        raise ValueError(
-            "Notion parent page ID not found"
-        )
+    if not token or not target_id:
+        raise ValueError("Missing Notion credentials (token or page ID).")
 
-    # ── Parse text → blocks ───────────────────────────────────────────────────
+    notion = Client(auth=token)
     title, content_blocks = parse_text_to_blocks(clean_text)
     
-    # ── Build header blocks (metadata callout + divider) ─────────────────────
-    # These appear at the top of every page so you know when it was created
+    # Create a timestamp header for the new entry
     timestamp = datetime.now().strftime("%Y-%m-%d at %H:%M")
     header_blocks = [
+        {"object": "block", "type": "divider", "divider": {}},
         {
             "object": "block",
             "type": "callout",
             "callout": {
-                "rich_text": [{
-                    "type": "text",
-                    "text": {"content": f"Auto-imported on {timestamp}"}
-                }],
+                "rich_text": [{"type": "text", "text": {"content": f"Entry added on {timestamp}"}}],
                 "icon": {"emoji": "📷"}
             }
-        },
-        {
-            "object": "block",
-            "type": "divider",
-            "divider": {}
         }
     ]
-
+    
     all_blocks = header_blocks + content_blocks
-    
-    # ── Create the page ───────────────────────────────────────────────────────
-    notion = Client(auth=token)
-    
-    # Notion API allows max 100 blocks per request.
-    # We send the first 100, then append the rest in batches.
-    first_batch = all_blocks[:100]
-    
-    response = notion.pages.create(
-        parent={"page_id": parent_id},
-        properties={
-            "title": {
-                "title": [{"type": "text", "text": {"content": title}}]
-            }
-        },
-        children=first_batch
-    )
-    
-    page_id = response["id"]
-    
-    # ── Append remaining blocks if page has more than 100 blocks ─────────────
-    remaining = all_blocks[100:]
-    while remaining:
-        batch     = remaining[:100]
-        remaining = remaining[100:]
-        notion.blocks.children.append(block_id=page_id, children=batch)
-    
-    page_url = f"https://www.notion.so/{page_id.replace('-', '')}"
-    print(f"[Notion] Page created: {page_url}")
+
+    if append_mode:
+        # ── APPEND MODE: Add blocks to existing page ──────────────────────────
+        print(f"[Notion] Appending to existing page: {target_id}")
+        # Notion blocks.children.append takes max 100 blocks at a time
+        for i in range(0, len(all_blocks), 100):
+            batch = all_blocks[i:i+100]
+            notion.blocks.children.append(block_id=target_id, children=batch)
+        
+        final_id = target_id
+    else:
+        # ── CREATE MODE: Create a brand new child page ────────────────────────
+        print(f"[Notion] Creating new page under: {target_id}")
+        first_batch = all_blocks[:100]
+        response = notion.pages.create(
+            parent={"page_id": target_id},
+            properties={
+                "title": {"title": [{"type": "text", "text": {"content": title}}]}
+            },
+            children=first_batch
+        )
+        final_id = response["id"]
+        
+        # Append remaining if > 100 blocks
+        remaining = all_blocks[100:]
+        for i in range(0, len(remaining), 100):
+            batch = remaining[i:i+100]
+            notion.blocks.children.append(block_id=final_id, children=batch)
+
+    page_url = f"https://www.notion.so/{final_id.replace('-', '')}"
     return page_url
+
+def fetch_available_pages(notion_token: str = None) -> dict:
+    """Fetches all pages accessible by the integration."""
+    token = notion_token or os.getenv("NOTION_TOKEN")
+    if not token:
+        return {}
+    
+    notion = Client(auth=token)
+    # Search for objects of type 'page'
+    results = notion.search(filter={"property": "object", "value": "page"}).get("results", [])
+    
+    pages = {}
+    for page in results:
+        # Extract title (handling cases where title might be empty)
+        properties = page.get("properties", {})
+        # Most pages use 'title' or 'Name' as the primary key
+        title_list = properties.get("title", {}).get("title", []) or properties.get("Name", {}).get("title", [])
+        title = title_list[0].get("plain_text", "Untitled") if title_list else "Untitled"
+        pages[title] = page["id"]
+        
+    return pages

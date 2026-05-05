@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 
 from src.ocr import load_model, run_ocr
 from src.postprocessing import clean_text
-from src.notion_export import create_notion_page
+from src.notion_export import export_to_notion
 
 load_dotenv()
 
@@ -42,7 +42,9 @@ def run_pipeline(
     llm_provider: str = "groq",
     notion_token: str = None,
     notion_page_id: str = None,
-    export_to_notion: bool = True
+    export_to_notion_bool: bool = True,  # Renamed local var to avoid conflict with function name
+    append_mode: bool = False,           # <--- NEW ARGUMENT
+    existing_page_id: str = None
 ) -> tuple:
     """
     Run the full pipeline on one image file.
@@ -77,16 +79,23 @@ def run_pipeline(
     print(f"[Pipeline] ✓ Cleanup done. Preview: {cleaned[:80]}...")
 
     # ── Step 3: Notion export ─────────────────────────────────────────────────
-    if not export_to_notion:
+    if not export_to_notion_bool:
         print("[Pipeline] Step 3/3: Skipping Notion export.")
         return None, cleaned
 
     print("[Pipeline] Step 3/3: Exporting to Notion...")
-    page_url = create_notion_page(
+
+# We use existing_page_id if in append_mode, otherwise use notion_page_id (parent)
+    target_id = existing_page_id if append_mode else notion_page_id
+
+    # Call the new function from notion_export.py
+    page_url = export_to_notion(
         clean_text=cleaned,
         notion_token=notion_token,
-        parent_page_id=notion_page_id
+        page_id=target_id,
+        append_mode=append_mode
     )
+
     print(f"[Pipeline] ✓ Done! {page_url}")
 
     return page_url, cleaned
@@ -123,7 +132,10 @@ if __name__ == "__main__":
         image_path=args.image,
         ocr_model=model,
         llm_provider=args.provider,
-        export_to_notion=not args.no_notion
+        export_to_notion_bool=not args.no_notion,
+        append_mode=args.append,
+        existing_page_id=args.page_id if args.append else None,
+        notion_page_id=args.page_id if not args.append else None
     )
 
     print("\n" + "─" * 60)
