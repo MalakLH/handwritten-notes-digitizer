@@ -36,6 +36,7 @@ def load_ocr_model():
 
 
 def run_pipeline(
+    num_lines: int,
     image_path: str,
     ocr_model,
     llm_provider: str = "groq",
@@ -62,7 +63,7 @@ def run_pipeline(
 
     # ── Step 1: OCR ───────────────────────────────────────────────────────────
     print("[Pipeline] Step 1/3: Running OCR...")
-    raw_text = run_ocr(ocr_model, image_path)
+    raw_text = run_ocr(image_path, num_lines, model=ocr_model)  # Adjust num_lines as needed
 
     if not raw_text.strip():
         print("[Pipeline] ⚠ OCR returned no text. Check the image.")
@@ -97,6 +98,10 @@ if __name__ == "__main__":
         description="Digitize a handwritten note image and send it to Notion."
     )
     parser.add_argument(
+        "--num-lines", type=int, required=True,
+        help="Number of lines in the image"
+    )
+    parser.add_argument(
         "--image", required=True,
         help="Path to the image file (jpg, png)"
     )
@@ -114,6 +119,7 @@ if __name__ == "__main__":
     model = load_ocr_model()
 
     url, text = run_pipeline(
+        num_lines=args.num_lines,
         image_path=args.image,
         ocr_model=model,
         llm_provider=args.provider,

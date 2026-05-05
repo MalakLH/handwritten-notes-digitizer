@@ -8,7 +8,10 @@ Usage:
     text  = run_ocr(model, "data/sample_images/test1.jpg")
 """
 
+import cv2
 import os
+import numpy as np
+from pathlib import Path
 
 
 def load_model(model_dir: str = None, use_gpu: bool = False):
@@ -50,37 +53,48 @@ def load_model(model_dir: str = None, use_gpu: bool = False):
     return model
 
 
-def run_ocr(model, image_path: str) -> str:
+def run_ocr(image_path: str, num_lines: int, model) -> str:
     """
-    Run OCR on an image file and return all recognized text as one string.
+    Segments an image into `num_lines` horizontal strips,
+    runs the fine-tuned OCR model on each strip,
+    and returns the concatenated raw text.
 
     Args:
-        model:      The model returned by load_model().
-        image_path: Path to the image file (jpg, png, etc.)
+        image_path:  Absolute path to the page image.
+        num_lines:   Number of lines the user says the page contains.
+        model:       The loaded fine-tuned OCR model instance.
 
     Returns:
-        A single string with all recognized text, lines joined by newlines.
-        Returns an empty string if nothing was recognized.
+        A single string with each predicted line separated by '\\n'.
     """
-    if not os.path.exists(image_path):
-        raise FileNotFoundError(f"Image not found: {image_path}")
 
-    results = model.predict(input=image_path, batch_size=1)
+    image = cv2.imread(image_path)
+    if image is None:
+        raise FileNotFoundError(f"Could not read image at: {image_path}")
 
-    lines = []
-    for result in results:
-        try:
-            res_data = result.get("res", result)
-            text  = res_data.get("rec_text", "")
-            score = res_data.get("rec_score", 0.0)
-            if text.strip() and score > 0.3:
-                lines.append(text.strip())
-        except (KeyError, AttributeError, TypeError):
-            try:
-                text = str(result).strip()
-                if text:
-                    lines.append(text)
-            except Exception:
-                continue
+    h = image.shape[0]
+    strip_height = h // num_lines
 
-    return "\n".join(lines)
+    if strip_height == 0:
+        raise ValueError(
+            f"num_lines ({num_lines}) is larger than the image height ({h}px). "
+            "Use a smaller value."
+        )
+
+    collected_lines: list[str] = []
+    y = 0
+
+    while y + strip_height <= h:
+        strip = image[y : y + strip_height, :]
+        predicted = model.predict(input=strip, batch_size=1)
+        collected_lines.append(predicted[0]["rec_text"])
+        y += strip_height
+
+    # Handle the leftover bottom strip (when h % num_lines != 0)
+    if y < h:
+        leftover_strip = image[y:h, :]
+        predicted = model.predict(input=leftover_strip, batch_size=1)
+        collected_lines.append(predicted[0]["rec_text"])
+
+    return "\n".join(collected_lines)
+    
