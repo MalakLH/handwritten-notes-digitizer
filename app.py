@@ -103,9 +103,9 @@ def get_notion_pages(token):
 # UI layout
 # ─────────────────────────────────────────────────────────────────────────────
 
-with gr.Blocks(title="Handwritten Notes Digitizer") as demo:
+with gr.Blocks(theme=gr.themes.Soft(), title="Handwritten Notes Digitizer") as demo:
 
-    gr.Markdown("# 📝 Handwritten Notes Digitizer")
+    gr.Markdown("Handwritten Notes Digitizer")
 
     with gr.Row():
         # ── Left column: inputs ───────────────────────────────────────────────
@@ -123,22 +123,18 @@ with gr.Blocks(title="Handwritten Notes Digitizer") as demo:
             )
 
             with gr.Accordion("Notion Settings", open=True):
-                token_input = gr.Textbox(label="Notion Token (Optional if in .env)", type="password")
+                token_input = gr.Textbox(label="Notion Token", type="password")
                 
-                refresh_btn = gr.Button("🔄 1. Load/Refresh My Pages")
+                refresh_btn = gr.Button("Load/Refresh My Pages")
                 
                 page_dropdown = gr.Dropdown(
-                    label="Select Page (Required for 'Append')",
+                    label="Select Page",
                     choices=[],
                     interactive=True
                 )
                 
-                manual_page_id = gr.Textbox(
-                    label="Parent Page ID (Required for 'Create New')",
-                    placeholder="Paste Parent ID here if not using dropdown"
-                )
 
-            run_btn = gr.Button("✨ 2. Digitize", variant="primary")
+            run_btn = gr.Button("Digitize", variant="primary")
 
         # ── Right column: outputs ─────────────────────────────────────────────
         with gr.Column():
@@ -163,7 +159,6 @@ with gr.Blocks(title="Handwritten Notes Digitizer") as demo:
             llm_radio,
             notion_mode_radio,
             token_input,
-            manual_page_id,
             page_dropdown
         ],
         outputs=[text_output, notion_output]
